@@ -6,6 +6,7 @@
 \usepackage{tabularx}               % better tables
 \usepackage[bookmarks]{hyperref}    % additional PDF settings
 \usepackage[parfill]{parskip}       % adjusting paragraph settings
+\usepackage{todonotes}              % adding TODO notes
 
 \usepackage{fontspec}               % for changing the font
 
@@ -82,40 +83,57 @@ board.
 \subsubsection{Input Layer}
 \label{ssub:input_layer}
 
+The input layer is responsible for controlling the USB port, subsampling the
+frame data, shifting the data into the neural net, and writing each frame into
+memory. This process is shown in figure~(\ref{fig:input-layer}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{diagrams/input-layer.png}
+    \caption{Block diagram for the input layer.}
+\label{fig:input-layer}
+\end{figure}
+
+The USB controller interfaces with the FT2232 USB-UART bridge on the Nexys 4
+board through the Tx and Rx signals. The Tx signal is needed in order to give
+commands to the camera over the USB port. The Rx line is responsible for reading
+in the data.
+
+Once the data is read in through the UART, it is parsed by a finite state
+machine. This FSM will read the USB packets from the camera to extract the pixel
+and frame data. It will condense each 24-bit pixel into 12 bits (the size needed
+for the VGA) and output this data along with control signals for determining the
+frame timing.
+
+The address unit will take in the control signals from the USB controller and
+use them to generate the proper addresses for the data. In order to improve
+performance, the data will be written to memory in a format suitable for VGA
+controller in the output layer. This address unit will take in the frame and
+line data to ensure that the pixels are written to the proper addresses.
+\todo{Figure out the memory layout that we need.}
+
+Due to size limitations in the FPGA, the neural net cannot process the entire
+frame. Pixels will be averaged togther in order to compress the data without
+losing too much important information. \todo{Figure out how we want to
+    subsample.}
+
+The input neurons will take the subsampled data on a parallel bus and shift the
+data through the input layer until the entire subsampled frame is loaded into
+the neurons. These neurons will then output all $n \times m$ bits of frame data
+to the neural net in parallel for processing. Control signals will tell the
+neural net to start processing the frame.
+
 \subsubsection{Neural Network}
 \label{ssub:neural_network}
+
+The neural network will take in the frame data and process it to determine the
+coordinates of the hand in the frame. \todo{Do more research on this part.}
 
 \subsubsection{Output Layer}
 \label{ssub:output_layer}
 
-The USB controller will load each pixel serially from the camera, storing the
-pixel in a shift register. Once the pixel is completely shifted into the
-controller, the controller will output the pixel (in parallel) to the input
-frame buffer.
-
-This input frame buffer will act like a FIFO for loading data from the USB
-controller. Once the buffer is full, it will output the data in parallel
-to both the neural net and the output buffer. Once this data is sent to the
-neural net and output buffer for processing, the USB controller can begin
-loading new data into the input buffer.
-
-The output buffer will have two inputs: the first input will be a massively
-parallel input for loading all the data from the input buffer. The second input
-will allow individual pixels to be reset. This will be connected to the cursor
-drawing logic in order to draw the cursor at the hand's location.
-
-The neural network will load all the data in parallel from the input buffer and
-operate on the data using the machine-learned parameters to find the coordinates
-of the hand that is being tracked. These coordinates will then be output to the
-cursor drawing logic. The cursor drawing logic will accept the coordinates
-produced by the neural net and will output control signals to the output buffer
-for drawing the cursor.
-
-The output buffer---after loading the input data and having the cursor drawn to
-it---will output one pixel at a time to the VGA controller. The VGA controller
-will load this data into a shift register, then shift it out to the display
-(along with the needed control signals). Due to the separate input and output
-buffers, a frame can be input while the previous frame is being shifted out.
+Read frame from memory, overlay the cursor. \todo{Draw block diagram, write
+    description.}
 
 \subsection{Algorithms}
 \label{sub:algorithms}
