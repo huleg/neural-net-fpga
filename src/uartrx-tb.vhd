@@ -3,8 +3,16 @@
 --
 --  Test Bench for UART receiver.
 --
+--  This is not an exhaustive testbench; it simply clocks data into the UART
+--  reciever (including one character with an invalid stop bit), and ensures
+--  that the correct data comes out the other side. It also tests to make sure
+--  that invalid data will not stop the receiver from running.
+--
+--  The testbench assumes that the receiver interprets data as MSB first.
+--
 --  Revision History:
 --      21 Apr 2015     Brian Kubisiak      Initial revision.
+--      22 Apr 2015     Brian Kubisiak      Updated documentation.
 --
 
 library ieee;
@@ -13,6 +21,7 @@ use     ieee.std_logic_1164.all;
 -- Our testbench entity has no ports; it is completely self-contained.
 entity uartrx_tb is
 end uartrx_tb;
+
 
 architecture TB_ARCHITECTURE of uartrx_tb is
 
@@ -72,7 +81,8 @@ architecture TB_ARCHITECTURE of uartrx_tb is
     constant data_in: std_logic_vector(0 to 10*4 + 1) :=
         "11" & "0010101011" & "0101010101" & "0110011010" & "0001100101";
 
-    -- Type for holding the output vectors
+    -- Type for holding the output vectors. We need this because VHDL doesn't
+    -- declaring an array of std_logic_vector without a new type.
     type OutData is array (0 to 3) of std_logic_vector(7 downto 0);
 
     -- We should see the following data output from the UART:
@@ -90,9 +100,12 @@ begin
     UUT: uartrx
         generic map ( N => 8 )
         port map  (
+            -- Map inputs to stimulus signals:
             clk   => clk,
             reset => reset,
             rx    => rx,
+
+            -- Map outputs to tested signals:
             data  => data,
             rdy   => rdy,
             err   => err

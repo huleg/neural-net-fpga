@@ -22,7 +22,8 @@
 --
 -- Revision History:
 --      17 Apr 2015     Brian Kubisiak      Initial revision.
---      21 Apr 2015     Brian Kubisiak      Changed to MSB-first to match simulation.
+--      21 Apr 2015     Brian Kubisiak      Changed to MSB-first.
+--      22 Apr 2015     Brian Kubisiak      Updated documentation.
 --
 
 library ieee;
