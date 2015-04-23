@@ -49,6 +49,7 @@ use     ieee.std_logic_1164.all;
 --      err (std_logic)         Active-low signal indicating an error occurred.
 --                              Currently, this means that the stop bit was not
 --                              high.
+--
 entity uartrx is
     generic ( N : integer := 8 );
     port
@@ -67,8 +68,10 @@ architecture procedural of uartrx is
 
     -- Shift register for loading new data from the serial line.
     signal shftrx   : std_logic_vector(N-1 downto 0);
+
     -- Buffer for outputting the received data.
     signal outbuf   : std_logic_vector(N-1 downto 0);
+
     -- Counter for indicating the number of bits received. There is 1 start bit,
     -- N data bits, and 1 stop bit for a total of N+2 bits.
     signal state    : integer range 0 to N+1;
@@ -123,18 +126,18 @@ begin
             elsif (state = N+1) then
 
                 -- Reset counter regardless of data validity.
-                state <= 0;
+                state   <= 0;
                 -- Always output the shifted data, even if it is found to be
                 -- invalid.
-                outbuf <= shftrx;
+                outbuf  <= shftrx;
 
                 -- Check for a valid stop bit.
                 if (rx = '1') then
                     -- Stop bit is valid; indicate data is ready.
-                    rdy    <= '0';
+                    rdy <= '0';
                 else
                     -- Stop bit invalid; indicate an error occurred.
-                    err    <= '0';
+                    err <= '0';
                 end if;
 
             -- Still just shifting in the data.
@@ -143,7 +146,7 @@ begin
                 -- Shift the new data bit into the LSB of the shift register.
                 shftrx <= shftrx(N-2 downto 0) & rx;
                 -- Go to next state.
-                state <= state + 1;
+                state  <= state + 1;
 
             end if;
 
