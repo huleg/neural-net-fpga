@@ -81,8 +81,8 @@ architecture TB_ARCHITECTURE of uartrx_tb is
     constant data_in: std_logic_vector(0 to 10*4 + 1) :=
         "11" & "0010101011" & "0101010101" & "0110011010" & "0001100101";
 
-    -- Type for holding the output vectors. We need this because VHDL doesn't
-    -- declaring an array of std_logic_vector without a new type.
+    -- Type for holding the output vectors. We need this because VHDL won't
+    -- declare an array of std_logic_vector without a new type.
     type OutData is array (0 to 3) of std_logic_vector(7 downto 0);
 
     -- We should see the following data output from the UART:
