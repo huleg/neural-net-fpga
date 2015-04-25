@@ -77,33 +77,26 @@ begin
     --
     --  DataRdyLatch
     --
-    --  This process latches and acknowledges the data ready signal at the end
-    --  of each character transmission. The ack signal will go active for a
-    --  single clock, while the latch will hold for an entire cycle. Both
-    --  signals will be set inactive when the reset input goes active.
+    --  This process latches the data ready signal at the end of each character
+    --  transmission. The latch will hold for an entire cycle.
     --
     DataRdyLatch: process(clk)
     begin
         if rising_edge(clk) then
 
-            -- When reset is active, both the acknowledge and latch signals go
-            -- inactive.
+            -- When reset is active, the latch signal goes inactive.
             if (reset = '0') then
                 rdylatch <= '1';
-                ack      <= '1';
 
             -- When transmitting the stop bit, check to see if new data is
-            -- ready. If it is ready, latch the ready signal and acknowledge the
-            -- request to transmit data.
+            -- ready. If it is ready, latch the ready signal.
             elsif (state = N+1) then
                 rdylatch <= rdy;
-                ack      <= rdy;
 
-            -- Else, just keep holding the latch; do not acknowledge any new
-            -- requests until the character transmission is over.
+            -- Else, just keep holding the latch.
             else
                 rdylatch <= rdylatch;
-                ack      <= '1';
+
             end if;
 
         end if;
@@ -115,7 +108,8 @@ begin
     --
     --  Transmit the data one bit at a time over the 'tx' line whenever data is
     --  valid. After transmission, if new data is available, transfer it to the
-    --  shift register and start the transmission cycle again.
+    --  shift register and start the transmission cycle again. When data is
+    --  shifted into the shift register, send an acknowledgement pulse.
     --
     TransmitData: process(clk)
     begin
@@ -123,6 +117,8 @@ begin
 
             -- By default, latch the shift register.
             shfttx <= shfttx;
+            -- Do not acknowledge any transmissions.
+            ack    <= '1';
 
             -- When resetting or no data available, output stop bit.
             if (reset = '0' or rdylatch = '1') then
@@ -150,6 +146,8 @@ begin
                 state   <=  0;
                 -- Load the new data into the shift register.
                 shfttx  <= data;
+                -- Acknowledge the new transmission
+                ack     <= '0';
 
             -- Otherwise, we are in the process of shifting out the data.
             else

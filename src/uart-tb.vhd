@@ -182,7 +182,7 @@ begin
         for i in 0 to 3 loop
 
             -- Start transmitting data.
-            data_rx <= test_vec(i);
+            data_tx <= test_vec(i);
             rdy_tx  <= '0';
 
             -- Once the transfer is acknowledged, go on to the next vector
@@ -196,7 +196,7 @@ begin
         for i in 4 to 5 loop
 
             -- Wait for a long time for a break between transmissions
-            wait for 5000 ns;
+            wait for 500 ns;
 
             -- Start the next transmission.
             data_tx <= test_vec(i);
@@ -204,11 +204,11 @@ begin
 
             -- Wait for acknowledgement before continuing
             wait until ack = '0';
+            rdy_tx <= '1';
 
         end loop;
 
         -- Finished transmitting all data; just wait here.
-        rdy_tx <= '1';
         wait;
 
     end process;
