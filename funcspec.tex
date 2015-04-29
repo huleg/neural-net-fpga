@@ -7,8 +7,11 @@
 \usepackage[bookmarks]{hyperref}    % additional PDF settings
 \usepackage[parfill]{parskip}       % adjusting paragraph settings
 \usepackage{todonotes}              % adding TODO notes
-
+\usepackage{listings}               % source code listing
 \usepackage{fontspec}               % for changing the font
+
+% Style for source code listings
+\lstset{basicstyle=\ttfamily\footnotesize, frame=single, tabsize=4, numbers=left}
 
 % change the style for the header
 \pagestyle{fancyplain}
@@ -17,6 +20,7 @@
 
 % use system font
 \setmainfont{Droid Serif}
+\setmonofont{Droid Sans Mono}
 
 \def\doctitle{EE 119c Project Proposal}
 \hypersetup{pdftitle={\doctitle}}
@@ -127,29 +131,66 @@ neural net to start processing the frame.
 \label{ssub:neural_network}
 
 The neural network will take in the frame data and process it to determine the
-coordinates of the hand in the frame. \todo{Do more research on this part.}
+coordinates of the hand in the frame. We will be using a multi-layer perceptron
+(MLP) network to implement our design. The weights for each neuron will be
+learned off chip, freeing up a lot of space for more neurons.
+
+There will be an input neuron for each pixel in the subsampled frame. The input
+neurons will be unique in that they will shift the data through the entire layer
+in order to process the entire frame in parallel.
+
+We will then have a single layer in the middle for the data processing. Each
+neuron in this layer will have a single MAC unit and a sigmoid function. Since
+the network will be trained off-chip, the weights will be pre-programmed into
+the design. This will significantly reduce the size of the neurons.
+
+The output layer will consist of only two neurons: one for computing the
+x-coordinate of the hand, and another for computing the y-coordinate. The output
+of the neural net will then just be a coordinate identifying where the hand is
+in the frame.
 
 \subsubsection{Output Layer}
 \label{ssub:output_layer}
 
-Read frame from memory, overlay the cursor. \todo{Draw block diagram, write
-    description.}
+The output layer is responsible for converting the output of the neural net into
+a group of pixel addresses, fetching the frame from memory, clearing the pixels
+corresponding to the hand location, and outputting the frame using the VGA
+protocol. A block diagram for this process is shown in
+figure~(\ref{fig:output-layer}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\linewidth]{diagrams/output-layer.png}
+    \caption{Block diagram for the output layer.}
+\label{fig:output-layer}
+\end{figure}
+
+The address calculation takes in the coordinates for the hand in the frame (from
+the neural net) and converts them into a group of addresses. These addresses
+correspond to the pixels in memory that will be blanked out for the cursor
+overlay. These addresses are compared against the addresses output to the
+memory, clearing the data output when they match.
+
+The VGA controller is a finite state machine that begins running once it
+receives the Rdy signal from the neural net. The controller will read the frame
+from memory, one pixel at a time. It will also generate the proper line sync,
+frame sync, and pixel clock signals to the VGA output. The data for the VGA
+output will come directly from the data bus.
 
 \subsection{Algorithms}
 \label{sub:algorithms}
 
-We will be using a convolutional neural network to identify where the hand is
-located in each frame. The parameters for the neural network will be learned in
-advance on the computer, then hard-coded into the FPGA neural net.
-Time-permitting, we will also implement unsupervised learning on the FPGA in
-order to allow the system to learn without hard-coded parameters.
+We will be using a neural network to identify where the hand is located in each
+frame. The neural net will be organized as a multi-layer perceptron network. The
+parameters for the neural network will be learned in advance on the computer,
+then hard-coded into the FPGA neural net.
 
 \subsection{Inputs}
 \label{sub:inputs}
 
 The input to this system will be video input through a USB controller. Each
-frame that is input to the USB controller will be stored in an internal frame
-buffer before being processed by the neural net.
+frame that is input to the USB controller will be stored in an external memory
+before being processed by the neural net.
 
 \subsection{Outputs}
 \label{sub:outputs}
@@ -191,6 +232,37 @@ This system will be demonstrated by attaching a video camera to the USB input
 and a monitor to the VGA output. Then, the system should detect a hand in the
 input frame and output the frame to the monitor with a cursor overlaid on the
 position of the hand.
+
+\section{Source Code Listing}
+\label{sec:source_code_listing}
+
+Below is the VHDL source for our neural net and input/output layers. For a
+high-level description of the design, see the functional specification.
+
+\subsection{UART Receiver}
+\label{sub:uart_receiver}
+
+\lstinputlisting{src/uartrx.vhd}
+
+\subsection{UART Transmitter}
+\label{sub:uart_transmitter}
+
+\lstinputlisting{src/uarttx.vhd}
+
+\subsection{UART Receiver Testbench}
+\label{sub:uart_receiver_testbench}
+
+\lstinputlisting{src/uartrx-tb.vhd}
+
+\subsection{UART Testbench}
+\label{sub:uart_testbench}
+
+\lstinputlisting{src/uart-tb.vhd}
+
+\subsection{USB Video Decoder}
+\label{sub:usb_video_decoder}
+
+\lstinputlisting{src/usb_video_decoder.vhd}
 
 \end{document}
 
