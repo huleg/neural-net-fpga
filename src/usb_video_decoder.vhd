@@ -9,7 +9,8 @@
 -- Target Devices:
 -- Tool versions:
 -- Description:     This entity implements a decoder of the USB video class
---                  data stream.
+--                  data stream. It relies on the usb_video_controller for 
+--						  control signals. 
 --
 -- Dependencies:
 --
@@ -32,21 +33,20 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 entity usb_video_decoder is
      Generic (
-        num_input_bits        : integer; -- number of bits from UART tx/rx
+        num_bits        : integer; -- number of bits from UART tx/rx
         num_red_output_bits   : integer; -- number of red bits to keep
         num_green_output_bits : integer; -- number of green bits to keep
         num_blue_output_bits  : integer  -- number of blue bits to keep
     );
     Port (
         Clock   : in  STD_LOGIC;    -- system clock
-        Reset   : in  STD_LOGIC;    -- system reset
+        FsmReset: in  STD_LOGIC;    -- FSM FsmReset
         -- data from UART input stream
-        DataIn  : in  STD_LOGIC_VECTOR (num_input_bits - 1 downto 0);
-
+        VideoDataIn  : in  STD_LOGIC_VECTOR (num_bits - 1 downto 0);
         Hsync   : out STD_LOGIC;    -- horizontal sync out
         Vsync   : out STD_LOGIC;    -- vertical sync out
         Fsync   : out STD_LOGIC;    -- frame sync out
-        DataOut : out  STD_LOGIC_VECTOR (num_red_output_bits -- Output data bus
+        VideoDataOut : out  STD_LOGIC_VECTOR (num_red_output_bits -- Output data bus
                 + num_green_output_bits + num_blue_output_bits - 1 downto 0)
     );
 end usb_video_decoder;
@@ -85,20 +85,26 @@ signal colCounter : integer range 0 to TOTAL_LINES;
 
 
 -- pre-DFF output data bus
-signal internalDataOut :  STD_LOGIC_VECTOR (num_red_output_bits
+signal internalVideoDataOut :  STD_LOGIC_VECTOR (num_red_output_bits
                     + num_green_output_bits + num_blue_output_bits - 1 downto 0);
 begin
 
     -- nextState logic
     FSM: process(currentState)
     begin
+		  if(currentState = idle) then
+				if(FsmReset = '1') then
+					nextState <= idle;
+				else
+					nextState <= activeSubSlot1;
+				end if;
         -- Current byte is first(low) byte in active videoSubSlot
-        if(currentState = activeSubSlot1) then
+        elsif(currentState = activeSubSlot1) then
 
             -- always going to get second part of subSlot
             nextState <= activeSubSlot2;
             -- output first byte
-            internalDataOut(num_input_bits - 1 downto 0) <= DataIn;
+            internalVideoDataOut(num_bits - 1 downto 0) <= VideoDataIn;
 
         -- Current byte is second (high) byte in active videoSubSlot
         elsif(currentState = activeSubSlot2) then
@@ -110,7 +116,7 @@ begin
             end if;
 
             -- output second byte
-            internalDataOut(2 * num_input_bits - 1 downto num_input_bits) <= DataIn;
+            internalVideoDataOut(2 * num_bits - 1 downto num_bits) <= VideoDataIn;
 
         -- Current byte is first (low) byte in inactive videoSubSlot
         elsif(currentState = inactiveSubSlot1) then
@@ -137,7 +143,7 @@ begin
             if(rowCounter < TOTAL_LINES) then   -- still in inactive lines of frame
                 nextState <= inactiveLineSlot1;
             else                                -- finished the inactive lines of frame
-                nextState <= activeSubSlot1;    -- reset to start of next frame
+                nextState <= activeSubSlot1;    -- FsmReset to start of next frame
             end if;
 
         end if;
@@ -147,11 +153,10 @@ begin
     process(Clock)
     begin
         if(Clock'event and Clock = '1') then
-            if(reset = '0') then
-                Hsync    <= '0';        -- default to no newline
-                Vsync       <= '0';     -- default to no newSample
-                Fsync    <= '0';        -- default to no newFrame
-
+            Hsync    <= '0';        -- default to no newline
+            Vsync    <= '0';  	    -- default to no newSample
+            Fsync    <= '0';        -- default to no newFrame
+            if(FsmReset = '0') then
                 -- Update row and column counters
                 if(colCounter = TOTAL_SAMPLES - 1 and rowCounter = TOTAL_LINES - 1) then
                     -- End of a frame
@@ -181,7 +186,7 @@ begin
 
                 -- Update the current state of FSM
                 currentState <= nextState;
-            else -- reset FSM
+            else -- FsmReset FSM
                 rowCounter  <= 0;
                 colCounter  <= 0;
                 currentState <= idle;
@@ -193,7 +198,7 @@ begin
     dataDFF: process(Clock)
     begin
         if(Clock'event and Clock = '1') then
-            DataOut <= internalDataOut; -- Latch internal data bus and send out
+            VideoDataOut <= internalVideoDataOut; -- Latch internal data bus and send out
         end if;
     end process;
 
